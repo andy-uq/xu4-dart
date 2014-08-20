@@ -1,0 +1,5 @@
+name: xu4_unittests
+description: A sample command-line application
+dependencies:
+  http: any
+  unittest: any
