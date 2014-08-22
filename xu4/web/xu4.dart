@@ -60,7 +60,7 @@ void setupStoryAndQuestions(Story story) {
     if (questions.answer(id)) {
       answers.hidden = true;
       querySelector('#intro p').hidden = true;
-      controller.save();
+      controller.save(new HtmlStore());
     }
   };
 
@@ -75,6 +75,15 @@ void setupStoryAndQuestions(Story story) {
 
   nextButton.onClick.listen(advance);
   querySelector('#intro').hidden = false;
+}
+
+class HtmlStore implements Store {
+  Storage localStorage = window.localStorage;
+
+  @override
+  void write(String name, String value) {
+    localStorage[name] = value;
+  }
 }
 
 void main() {

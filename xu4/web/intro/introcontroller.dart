@@ -4,6 +4,9 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:convert';
 
+import '../enumerations.dart';
+import '../savegame.dart';
+
 typedef Future LoadStringTableAsync(String name);
 typedef void ShowText(String text);
 
@@ -169,17 +172,17 @@ class Questions {
     var origY = 12;
 
     var images = {
-       "honestycard": new Image.offset("honcom", width, height, origX_left, origY),
-       "compassioncard": new Image.offset("honcom", width, height, origX_right, origY),
+      "honestycard": new Image.offset("honcom", width, height, origX_left, origY),
+      "compassioncard": new Image.offset("honcom", width, height, origX_right, origY),
 
-       "valorcard": new Image.offset("valjus", width, height, origX_left, origY),
-       "justicecard": new Image.offset("valjus", width, height, origX_right, origY),
+      "valorcard": new Image.offset("valjus", width, height, origX_left, origY),
+      "justicecard": new Image.offset("valjus", width, height, origX_right, origY),
 
-       "sacrificecard": new Image.offset("sachonor", width, height, origX_left, origY),
-       "honorcard": new Image.offset("sachonor", width, height, origX_right, origY),
+      "sacrificecard": new Image.offset("sachonor", width, height, origX_left, origY),
+      "honorcard": new Image.offset("sachonor", width, height, origX_right, origY),
 
-       "spiritualitycard": new Image.offset("spirhum", width, height, origX_left, origY),
-       "humilitycard": new Image.offset("spirhum", width, height, origX_right, origY),
+      "spiritualitycard": new Image.offset("spirhum", width, height, origX_left, origY),
+      "humilitycard": new Image.offset("spirhum", width, height, origX_right, origY),
     };
 
     _imageWriter.RenderSubImage(images[cardNames[leftCard]], 12, 12);
@@ -240,97 +243,24 @@ class IntroController {
   }
 
   void save(Store store) {
-    SaveGame saveGame;
-    saveGame.avatar = new SaveGamePlayerRecord(_name, _sex);
+    var avatar = new SaveGamePlayerRecord(name:_name, sex:_sex);
+    SaveGame saveGame = new SaveGame(avatar);
+
     store.write("party.sav", JSON.encode(saveGame));
   }
 
   Future queryNameAndSex(NameAndSex nameAndSex) {
     var query = new QueryNameAndSex(nameAndSex);
-    var future = query.getNameAndSex().then((_) { _name = query.name; _sex = query.sex; });
+    var future = query.getNameAndSex().then((_) {
+      _name = query.name;
+      _sex = query.sex;
+    });
     return future;
   }
 }
 
 abstract class Store {
   void write(String name, String value);
-}
-
-class SaveGame {
-  SaveGamePlayerRecord avatar;
-}
-
-class SaveGamePlayerRecord {
-  String name, sex;
-
-  int hp, hpMax;
-  int xp;
-  int str, dex, intel;
-  int mp;
-  int unknown;
-
-  WeaponType weaponType;
-  ArmourType armourType;
-  ClassType characterClass;
-  StatusType status;
-
-  SaveGamePlayerRecord(this.name, this.sex);
-}
-
-class ClassType {
-
-}
-
-class StatusType {
-  static const STAT_GOOD = 'G';
-      static const STAT_POISONED = 'P';
-          static const STAT_SLEEPING = 'S';
-              static const STAT_DEAD = 'D';
-}
-
-class ArmourType {
-
-  static const ARMR_NONE = const ArmourType._(0);
-  static const ARMR_CLOTH = const ArmourType._(1);
-  static const ARMR_LEATHER = const ArmourType._(2);
-  static const ARMR_CHAIN = const ArmourType._(3);
-  static const ARMR_PLATE = const ArmourType._(4);
-  static const ARMR_MAGICCHAIN = const ArmourType._(5);
-  static const ARMR_MAGICPLATE = const ArmourType._(6);
-  static const ARMR_MYSTICROBES = const ArmourType._(7);
-  static const ARMR_MAX = const ArmourType._(8);
-
-  static get values => [ARMR_NONE,ARMR_CLOTH,ARMR_LEATHER,ARMR_CHAIN,ARMR_PLATE,ARMR_MAGICCHAIN,ARMR_MAGICPLATE,ARMR_MYSTICROBES,ARMR_MAX];
-
-  final int value;
-
-  const ArmourType._(this.value);
-}
-
-class WeaponType {
-  static const WEAP_HANDS = const WeaponType._(0);
-  static const WEAP_STAFF = const WeaponType._(1);
-  static const WEAP_DAGGER = const WeaponType._(2);
-  static const WEAP_SLING = const WeaponType._(3);
-  static const WEAP_MACE = const WeaponType._(4);
-  static const WEAP_AXE = const WeaponType._(5);
-  static const WEAP_SWORD = const WeaponType._(6);
-  static const WEAP_BOW = const WeaponType._(7);
-  static const WEAP_CROSSBOW = const WeaponType._(8);
-  static const WEAP_OIL = const WeaponType._(9);
-  static const WEAP_HALBERD = const WeaponType._(10);
-  static const WEAP_MAGICAXE = const WeaponType._(11);
-  static const WEAP_MAGICSWORD = const WeaponType._(12);
-  static const WEAP_MAGICBOW = const WeaponType._(13);
-  static const WEAP_MAGICWAND = const WeaponType._(14);
-  static const WEAP_MYSTICSWORD = const WeaponType._(15);
-  static const WEAP_MAX = const WeaponType._(16);
-
-  static get values => [WEAP_HANDS,WEAP_STAFF,WEAP_DAGGER,WEAP_SLING,WEAP_MACE,WEAP_AXE,WEAP_SWORD,WEAP_BOW,WEAP_CROSSBOW,WEAP_OIL,WEAP_HALBERD,WEAP_MAGICAXE,WEAP_MAGICSWORD,WEAP_MAGICBOW,WEAP_MAGICWAND,WEAP_MYSTICSWORD,WEAP_MAX];
-
-  final int value;
-
-  const WeaponType._(this.value);
 }
 
 typedef SetNameAndSex(String name, String sex);
