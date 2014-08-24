@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'intro/introcontroller.dart';
+import 'enumerations.dart';
 
 part 'load_string_table.dart';
 
@@ -52,29 +53,56 @@ class HtmlImageWriter implements ImageWriter {
   }
 }
 
-void setupStoryAndQuestions(Story story) {
-  var nextButton = querySelector('#intro button.next');
-  var answers = querySelector('#answer');
+Story _story;
+var nextButton = querySelector('#intro button.next');
+var answers = querySelector('#answer');
+var _endOfStory = _endFirstStory;
 
+var advanceStoryNext = (_) {
+  if (!_story.advance()) {
+    _endOfStory();
+  }
+};
+
+void _endFirstStory() {
   var answerQuestion = (questions, id) {
     if (questions.answer(id)) {
       answers.hidden = true;
-      querySelector('#intro p').hidden = true;
       controller.save(new HtmlStore());
+      _beginOutro();
     }
   };
 
-  var advance = (_) {
-    if (!story.advance()) {
-      nextButton.hidden = true;
-      var questions = controller.beginQuestions(_showText, new HtmlImageWriter("#intro div.image", (n) => "url('images/cards/${n}.png')"));
-      querySelectorAll('#answer button').onClick.listen((e) => answerQuestion(questions, e.target.id));
-      answers.hidden = false;
-    }
-  };
+  nextButton.hidden = true;
+  var questions = controller.beginQuestions(_showText, new HtmlImageWriter("#intro div.image", (n) => "url('images/cards/${n}.png')"));
+  querySelectorAll('#answer button').onClick.listen((e) => answerQuestion(questions, e.target.id));
+  answers.hidden = false;
+}
 
-  nextButton.onClick.listen(advance);
+void _beginOutro() {
+  _story = controller.beginOutro(_showText);
+  _endOfStory = _endIntro;
+  nextButton.hidden = false;
+}
+
+void _endIntro() {
+  querySelector('#intro').hidden = true;
+
+  var gameBoard = querySelector('#game-board');
+  for (var i = 0; i < 16 * 16; i++) {
+    var tile = new DivElement();
+    tile.classes.add('tile');
+    tile.dataset["x"] = '${i % 16}';
+    tile.dataset["y"] = '${i ~/ 16}';
+    gameBoard.children.add(tile);
+  }
+  querySelector('#game-board').hidden = false;
+}
+
+void setupStoryAndQuestions(Story story) {
+  nextButton.onClick.listen(advanceStoryNext);
   querySelector('#intro').hidden = false;
+  _story = story;
 }
 
 class HtmlStore implements Store {
@@ -86,8 +114,16 @@ class HtmlStore implements Store {
   }
 }
 
+Future loadInitialClassValues() {
+  var url = 'intro/initialClassValues.json';
+  return HttpRequest.getString(url).then((data) {
+    Map map = JSON.decode(data);
+    InitialClassValues.loadFromMap(map);
+  });
+}
+
 void main() {
-  controller.init(loadStringTableAsync).then((_) => controller.queryNameAndSex(new NameAndSexForm())).then((_) => setupStoryAndQuestions(controller.beginStory(_showText, new HtmlImageWriter("#intro div.image", (n) => "url('images/intro/${n}.png')"))));
+  controller.init(loadStringTableAsync, loadInitialClassValues).then((_) => controller.queryNameAndSex(new NameAndSexForm())).then((_) => setupStoryAndQuestions(controller.beginStory(_showText, new HtmlImageWriter("#intro div.image", (n) => "url('images/intro/${n}.png')"))));
 }
 
 class NameAndSexForm implements NameAndSex {

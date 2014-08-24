@@ -8,6 +8,8 @@ import '../enumerations.dart';
 import '../savegame.dart';
 
 typedef Future LoadStringTableAsync(String name);
+typedef Future LoadInitialClassValuesAsync();
+
 typedef void ShowText(String text);
 
 class Image {
@@ -47,9 +49,10 @@ class Story {
   ShowText _showText;
   ImageWriter _imageWriter;
 
-  int _storyInd = 22;
+  int _storyInd = 0;
 
-  Story(this._introText, this._showText, this._imageWriter) {
+  Story(this._introText, this._showText, [ImageWriter imageWriter]) {
+    this._imageWriter = imageWriter;
     showNextPanel();
   }
 
@@ -63,6 +66,16 @@ class Story {
   }
 
   void showNextPanel() {
+    if (_imageWriter != null) {
+      _renderBackground();
+    }
+
+    var storyText = _introText[_storyInd];
+    _showText(storyText);
+    _storyInd++;
+  }
+
+  void _renderBackground() {
     if (_storyInd == 0) {
       _imageWriter.Render(_image("tree"));
     } else if (_storyInd == 3) {
@@ -73,7 +86,7 @@ class Story {
       _imageWriter.RenderSubImage(overlay, 72, 68);
     } else if (_storyInd == 5) {
       var overlay = new Image("tree", 24, 24);
-      overlay.origX = -24;
+      overlay.origX = 24;
       overlay.origY = 48;
       _imageWriter.Render(_image("tree"));
       _imageWriter.RenderSubImage(overlay, 72, 68);
@@ -92,11 +105,6 @@ class Story {
     } else if (_storyInd == 23) {
       _imageWriter.Render(_image("abacus"));
     }
-
-    var storyText = _introText[_storyInd];
-    _storyInd++;
-
-    _showText(storyText);
   }
 }
 
@@ -107,6 +115,12 @@ class Questions {
   List<int> _questionTree;
   ShowText _showText;
   ImageWriter _imageWriter;
+
+  ClassType get selectedClass => ClassType.fromQuestionTree(_questionTree[14]);
+
+  Virtue selectedVirtue(int i) {
+    return Virtue.fromQuestionTree(_questionTree[i]);
+  }
 
   static const int GYP_PLACES_FIRST = 0;
   static const int GYP_PLACES_TWOMORE = 1;
@@ -224,13 +238,17 @@ class Questions {
   }
 }
 
+const int GYP_SEGUE1 = 13;
+const int GYP_SEGUE2 = 14;
+
+
 class IntroController {
   IntroBinData _introBinData = new IntroBinData();
   Questions _questions;
   String _name, _sex;
 
-  Future init(LoadStringTableAsync loadStringTable) {
-    return _introBinData.load(loadStringTable);
+  Future init(LoadStringTableAsync loadStringTable, LoadInitialClassValuesAsync loadInitialClassValues) {
+    return Future.wait([_introBinData.load(loadStringTable), loadInitialClassValues()]);
   }
 
   Questions beginQuestions(ShowText showText, ImageWriter imageWriter) {
@@ -241,12 +259,66 @@ class IntroController {
   Story beginStory(ShowText showText, ImageWriter imageWriter) {
     return new Story(_introBinData.introText, showText, imageWriter);
   }
+  
+  Story beginOutro(ShowText showText) {
+    return new Story([_introBinData.introGypsy[GYP_SEGUE1], _introBinData.introGypsy[GYP_SEGUE2]], showText);
+  }
 
   void save(Store store) {
-    var avatar = new SaveGamePlayerRecord(name:_name, sex:_sex);
+    var avatar = new SaveGamePlayerRecord(name: _name, sex: _sex);
     SaveGame saveGame = new SaveGame(avatar);
+    _initialisePlayers(saveGame);
 
-    store.write("party.sav", JSON.encode(saveGame));
+    store.write("party.sav", JSON.encode(saveGame.toMap()));
+  }
+
+  void _initialisePlayers(SaveGame saveGame) {
+
+    ClassType selectedClass = _questions.selectedClass;
+    saveGame.x = InitialClassValues.classValues[selectedClass].x;
+    saveGame.y = InitialClassValues.classValues[selectedClass].y;
+
+    var avatar = saveGame.players[0];
+    avatar.characterClass = selectedClass;
+    avatar.weaponType = InitialClassValues.classValues[selectedClass].weaponType;
+    avatar.armourType = InitialClassValues.classValues[selectedClass].armourType;
+    avatar.xp = InitialClassValues.classValues[selectedClass].xp;
+
+    avatar.str = 15;
+    avatar.dex = 15;
+    avatar.intel = 15;
+
+    for (var i = 8; i < 15; i++) {
+      Virtue virtue = _questions.selectedVirtue(i);
+      saveGame.karma[virtue] += 5;
+      virtue.setInitialPlayerStats(avatar);
+    }
+
+    avatar.hp = avatar.hpMax = avatar.maxLevel * 100;
+    avatar.mp = selectedClass.getMaxMp(avatar);
+
+    int p = 1;
+    ClassType.values.forEach((i) {
+      /* Initial setup for party members that aren't in your group yet... */
+      if (i != selectedClass) {
+        var npc = saveGame.players[p];
+        var initialClassValues = InitialClassValues.classValues[i];
+
+        npc.characterClass = i;
+        npc.xp = initialClassValues.xp;
+        npc.str = initialClassValues.str;
+        npc.dex = initialClassValues.dex;
+        npc.intel = initialClassValues.intel;
+        npc.weaponType = initialClassValues.weaponType;
+        npc.armourType = initialClassValues.armourType;
+        npc.name = initialClassValues.name;
+        npc.sex = initialClassValues.sex;
+        npc.hp = npc.hpMax = initialClassValues.level * 100;
+        npc.mp = i.getMaxMp(npc);
+        p++;
+      }
+    });
+
   }
 
   Future queryNameAndSex(NameAndSex nameAndSex) {
