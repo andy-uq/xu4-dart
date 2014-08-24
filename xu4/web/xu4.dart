@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'intro/introcontroller.dart';
+import 'enumerations.dart';
 
 part 'load_string_table.dart';
 
@@ -61,6 +62,8 @@ void setupStoryAndQuestions(Story story) {
       answers.hidden = true;
       querySelector('#intro p').hidden = true;
       controller.save(new HtmlStore());
+      querySelector('#intro').hidden = true;
+      querySelector('#game-board').hidden = false;
     }
   };
 
@@ -86,8 +89,25 @@ class HtmlStore implements Store {
   }
 }
 
+Future loadInitialClassValues() {
+  var url = 'intro/initialClassValues.json';
+  return HttpRequest.getString(url).then((data) {
+    Map map = JSON.decode(data);
+    InitialClassValues.loadFromMap(map);
+  });
+}
+
 void main() {
-  controller.init(loadStringTableAsync).then((_) => controller.queryNameAndSex(new NameAndSexForm())).then((_) => setupStoryAndQuestions(controller.beginStory(_showText, new HtmlImageWriter("#intro div.image", (n) => "url('images/intro/${n}.png')"))));
+  var gameBoard = querySelector('#game-board');
+  for (var i=0; i < 16*16; i++) {
+    var tile = new DivElement();
+    tile.classes.add('tile');
+    tile.dataset["x"] = '${i % 16}';
+    tile.dataset["y"] = '${i ~/ 16}';
+    gameBoard.children.add(tile);
+  }
+  
+  controller.init(loadStringTableAsync, loadInitialClassValues).then((_) => controller.queryNameAndSex(new NameAndSexForm())).then((_) => setupStoryAndQuestions(controller.beginStory(_showText, new HtmlImageWriter("#intro div.image", (n) => "url('images/intro/${n}.png')"))));
 }
 
 class NameAndSexForm implements NameAndSex {

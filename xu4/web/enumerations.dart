@@ -10,30 +10,184 @@ class Reagent {
   static const Reagent REAG_NIGHTSHADE = const Reagent._("nightshade");
   static const Reagent REAG_MANDRAKE = const Reagent._("mandrake");
 
-  static get values => [REAG_ASH, REAG_GINSENG, REAG_GARLIC, REAG_SILK, REAG_MOSS, REAG_PEARL, REAG_NIGHTSHADE, REAG_MANDRAKE];
+  static List<Reagent> get values => [REAG_ASH, REAG_GINSENG, REAG_GARLIC, REAG_SILK, REAG_MOSS, REAG_PEARL, REAG_NIGHTSHADE, REAG_MANDRAKE];
 
   final String value;
 
   const Reagent._(this.value);
+
+  static Reagent parse(String value) {
+    if (value == null) {
+      return null;
+    }
+
+    return values.singleWhere((c) => c.value == value);
+  }
 }
 
 class Spell {
-  static get values => [];
-}
-
-class ClassType {
-  static const CLASS_MAGE = const ClassType._("mage");
-  static const CLASS_BARD = const ClassType._("bard");
-  static const CLASS_FIGHTER = const ClassType._("fighter");
-  static const CLASS_DRUID = const ClassType._("druid");
-  static const CLASS_TINKER = const ClassType._("tinker");
-  static const CLASS_PALADIN = const ClassType._("paladin");
-  static const CLASS_RANGER = const ClassType._("ranger");
-  static const CLASS_SHEPHERD = const ClassType._("shepherd");
+  static List<Spell> get values => [];
 
   final String value;
 
-  const ClassType._(this.value);
+  const Spell._(this.value);
+
+  static Spell parse(String value) {
+    if (value == null) {
+      return null;
+    }
+
+    return values.singleWhere((c) => c.value == value);
+  }
+}
+
+class Player {
+  String name, sex;
+
+  int hp = 0,
+      hpMax = 0;
+  int xp = 0;
+  int str = 0,
+      dex = 0,
+      intel = 0;
+  int mp = 0;
+  int unknown = 0;
+
+  WeaponType weaponType = WeaponType.WEAP_HANDS;
+  ArmourType armourType = ArmourType.ARMR_NONE;
+  ClassType characterClass = ClassType.Mage;
+  StatusType status = StatusType.STAT_GOOD;
+  
+  int get level {
+    return hpMax ~/ 100;
+  }
+  
+  int get maxLevel {
+    int level = 1;
+    int next = 100;
+
+    while (xp >= next && level < 8) {
+        level++;
+        next <<= 1;
+    }
+
+    return level;
+  }
+}
+
+typedef int GetMaxMp(Player player);
+
+class InitialClassValues {
+  String name, sex;
+  int level, xp;
+  int str, dex, intel;
+
+  WeaponType weaponType = WeaponType.WEAP_HANDS;
+  ArmourType armourType = ArmourType.ARMR_NONE;
+
+  int x, y;
+
+  InitialClassValues.fromMap(Map data) {
+    dex = data["dex"];
+    intel = data["intel"];
+    name = data["name"];
+    sex = data["sex"];
+    str = data["str"];
+    xp = data["xp"];
+    level = data["level"];
+
+    armourType = ArmourType.parse(data["armourType"]);
+    weaponType = WeaponType.parse(data["weaponType"]);
+  }
+
+  static Map<ClassType, InitialClassValues> classValues;
+
+  static loadFromMap(Map data) {
+    classValues = new Map.fromIterable(data.keys, key: (k) => ClassType.parse(k), value: (k) => new InitialClassValues.fromMap(data[k]));
+  }
+}
+
+typedef void SetInitialPlayerStats(Player player);
+
+class Virtue {
+  static final Virtue Honesty = new Virtue("honesty", (p) {
+    p.intel += 3;
+  });
+
+  static final Virtue Compassion = new Virtue("compassion", (p) {
+    p.dex += 3;
+  });
+
+  static final Virtue Valor = new Virtue("valor", (p) {
+    p.str += 3;
+  });
+
+  static final Virtue Justice = new Virtue("justice", (p) {
+    p.intel++;
+    p.dex++;
+  });
+
+  static final Virtue Sacrifice = new Virtue("sacrifice", (p) {
+    p.dex++;
+    p.str++;
+  });
+
+  static final Virtue Honour = new Virtue("honour", (p) {
+    p.intel++;
+    p.str++;
+  });
+
+  static final Virtue Spirituality = new Virtue("spirituality", (p) {
+    p.intel++;
+    p.str++;
+    p.dex++;
+  });
+
+  static final Virtue Humility = new Virtue("humilty", (p) { /* no stats for you */ });
+
+  static List<Virtue> get values => [Honesty, Compassion, Valor, Justice, Sacrifice, Honour, Spirituality, Humility];
+  final String name;
+  final SetInitialPlayerStats setInitialPlayerStats;
+
+  Virtue(this.name, this.setInitialPlayerStats);
+
+  static Virtue fromQuestionTree(int index) {
+    return values[index];
+  }
+
+  static parse(String value) {
+    return values.singleWhere((c) => c.name == value);
+  }
+}
+
+class ClassType {
+  static final Mage = new ClassType._("mage", (p) => p.intel * 2);
+  static final Bard = new ClassType._("bard", (p) => p.intel);
+  static final Fighter = new ClassType._("fighter", (p) => 0);
+  static final Druid = new ClassType._("druid", (p) => p.intel * 3 ~/ 2);
+  static final Tinker = new ClassType._("tinker", (p) => p.intel ~/ 2);
+  static final Paladin = new ClassType._("paladin", (p) => p.intel);
+  static final Ranger = new ClassType._("ranger", (p) => p.intel);
+  static final Shepherd = new ClassType._("shepherd", (p) => 0);
+
+  static List<ClassType> get values => [Mage, Bard, Fighter, Druid, Tinker, Paladin, Ranger, Shepherd];
+  final String value;
+  final GetMaxMp _getMaxMp;
+
+  ClassType._(this.value, this._getMaxMp);
+
+  int getMaxMp(Player player) {
+    int mp = _getMaxMp(player);
+    return mp > 99 ? 99 : mp;
+  }
+
+  static ClassType parse(String value) {
+    return values.singleWhere((c) => c.value == value);
+  }
+
+  static ClassType fromQuestionTree(int index) {
+    return values[index];
+  }
 }
 
 class StatusType {
@@ -42,11 +196,15 @@ class StatusType {
   static const STAT_SLEEPING = const StatusType._('S');
   static const STAT_DEAD = const StatusType._('D');
 
-  static get values => [STAT_GOOD, STAT_POISONED, STAT_SLEEPING, STAT_DEAD];
+  static List<StatusType> get values => [STAT_GOOD, STAT_POISONED, STAT_SLEEPING, STAT_DEAD];
 
   final String value;
 
   const StatusType._(this.value);
+
+  static StatusType parse(String value) {
+    return values.singleWhere((c) => c.value == value);
+  }
 }
 
 class ArmourType {
@@ -65,6 +223,10 @@ class ArmourType {
   final String value;
 
   const ArmourType._(this.value);
+
+  static ArmourType parse(String value) {
+    return values.singleWhere((c) => c.value == value);
+  }
 }
 
 class WeaponType {
@@ -90,4 +252,8 @@ class WeaponType {
   final String value;
 
   const WeaponType._(this.value);
+
+  static WeaponType parse(String value) {
+    return values.singleWhere((c) => c.value == value);
+  }
 }
